@@ -10,6 +10,7 @@ PlayerIDEnc=''
 mode = 0
 play, songlen, backlight = 0,0,0
 volume = "20"
+slider, mult=0, 5
 delay=0.5
 dispIlock=0
 title=""
@@ -98,30 +99,38 @@ def init_display():
  
 
 # Handle the button presses
-def update_pin_text(event):
-  event.chip.lcd.set_cursor(0,0)
-  global mode, volume
-  global conn, cad
-  global PlayerID
+#def update_pin_text(event):
+#  event.chip.lcd.set_cursor(0,0)
+#  global mode, volume
+#  global conn, cad
+#  global PlayerID
 
-  if (event.pin_num == 0):
+#  if (event.pin_num == 0):
+def pushed_play(event):      
+      global conn
       msg=PlayerID+' pause'
       conn.write(msg.encode('ascii')+b"\n")
 
-  elif (event.pin_num == 1):
+#  elif (event.pin_num == 1):
+def pushed_back(event):
+      global conn
       msg=PlayerID+' playlist jump -1'
       conn.write(msg.encode('ascii')+b"\n")
 
-  elif (event.pin_num == 2):
+#  elif (event.pin_num == 2):
+def pushed_forward(event):
+      global conn
       msg=PlayerID+' playlist jump +1'
       conn.write(msg.encode('ascii')+b"\n")
 
-  elif (event.pin_num == 3):
+#  elif (event.pin_num == 3):
+def reset(event):
       cad.init_board() 
       init_display() 
       #event.chip.lcd.clear()
 
-  elif (event.pin_num == 4):
+#  elif (event.pin_num == 4):
+def pushed_blight(event):
      global backlight
      if (backlight == 0):
         event.chip.lcd.backlight_on()
@@ -130,36 +139,47 @@ def update_pin_text(event):
         event.chip.lcd.backlight_off()
         backlight = 0
 
-  elif (event.pin_num == 7):
-     if (mode == 0):
-        msg=PlayerID+' mixer volume +5'
-        conn.write(msg.encode('ascii')+b"\n")
-     else:
-        msg=PlayerID+' time 30'
-        conn.write(msg.encode('ascii')+b"\n")
+#  elif (event.pin_num == 7):
+def slider_right(event):
+    global slider
+    slider+=1
+     #if (mode == 0):
+        #msg=PlayerID+' mixer volume +5'
+        #conn.write(msg.encode('ascii')+b"\n")
+     #else:
+     #   msg=PlayerID+' time 30'
+     #   conn.write(msg.encode('ascii')+b"\n")
 
-  elif (event.pin_num == 6):
-     if (mode == 0):
-        msg=PlayerID+' mixer volume -5'
-        conn.write(msg.encode('ascii')+b"\n")
-     else:
-        msg=PlayerID+' time -30'
-        conn.write(msg.encode('ascii')+b"\n")
+#  elif (event.pin_num == 6):
+def slider_left(event):
+    global slider
+    slider-=1
+#     if (mode == 0):
+#        msg=PlayerID+' mixer volume -5'
+#        conn.write(msg.encode('ascii')+b"\n")
+#     else:
+#        msg=PlayerID+' time -30'
+#        conn.write(msg.encode('ascii')+b"\n")
 
-  elif (event.pin_num == 5):
+#  elif (event.pin_num == 5):
+def slider_in(event):
+     global slider, multi, mode, volume
+     slider=0
      if (mode == 0):
         cad.lcd.set_cursor(11,1)
         cad.lcd.write_custom_bitmap(5)
         cad.lcd.write_custom_bitmap(1)
+        #time.sleep(delay)
         write_to_cad("   ")
-        time.sleep(delay)
         mode = 1
+        mult=30
      else:
         cad.lcd.set_cursor(11,1)
         cad.lcd.write_custom_bitmap(0)
         time.sleep(delay)
         mode = 0
         display_volume(volume)
+        mult=5
 
 
 
@@ -233,7 +253,7 @@ def displayline(line):
 
   
   #Pause to let the PF Cad catchup - maybe
-  time.sleep(delay)
+  #time.sleep(delay)
 
 
 
@@ -246,8 +266,16 @@ custom_bitmaps()
 init_display()
 listener = pifacecad.SwitchEventListener(chip=cad)
 
-for i in range(8):
-  listener.register(i, pifacecad.IODIR_RISING_EDGE, update_pin_text)
+#for i in range(8):
+#  listener.register(i, pifacecad.IODIR_RISING_EDGE, update_pin_text)
+listener.register(0, pifacecad.IODIR_RISING_EDGE, pushed_play)
+listener.register(1, pifacecad.IODIR_RISING_EDGE, pushed_back)
+listener.register(2, pifacecad.IODIR_RISING_EDGE, pushed_forward)
+#listener.register(3, pifacecad.IODIR_RISING_EDGE, reset)
+listener.register(4, pifacecad.IODIR_RISING_EDGE, pushed_blight)
+listener.register(5, pifacecad.IODIR_RISING_EDGE, slider_in)
+listener.register(6, pifacecad.IODIR_RISING_EDGE, slider_left)
+listener.register(7, pifacecad.IODIR_RISING_EDGE, slider_right)
 listener.activate()
 
 PlayerID=ReadConfig()
@@ -294,7 +322,22 @@ while 1:
        line=readline[LineEnd+1:len(readline)]
        fullLine=line.decode('utf-8')
 
-  #else:
-  #time.sleep(delay)  
+  else:
+      if (slider!=0):
+          list=str(mult*slider)
+          if (mode == 0):
+              if (slider>0):
+                list=PlayerID+' mixer volume +'+list
+              else:
+                list=PlayerID+' mixer volume '+list
+
+          else:
+            list=PlayerID+' time '+list
+
+          slider=0
+          print (list)
+          conn.write(list.encode('ascii')+b"\n")
+      else:
+          time.sleep(delay)  
 
 
