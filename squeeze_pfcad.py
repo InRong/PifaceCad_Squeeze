@@ -8,28 +8,30 @@ configFile='/etc/default/squeezelite'
 PlayerID=''
 PlayerIDEnc=''
 mode = 0
+loop = 0
+rescnt = 0
 play, songlen, backlight = 0,0,0
 volume = "20"
 slider, mult=0, 5
-delay=0.5
+delay=0.05
 dispIlock=0
 title=""
 
 # Check and display 
 def write_to_cad(text):
     global cad, delay
-    global dispIlock
-    while (dispIlock==1):
-        #print('Interlock.')
-        sleep(.1)
+    #global dispIlock
+    #while (dispIlock==1):
+    #    print('Interlock.')
+    #    time.sleep(.1)
 
-    dispIlock=1
+    #dispIlock=1
     #print(text)
     #pos=re.match('[A-Z0-9\ !"£$%^&\*()-_+=#@:.,?\{\}]',text)
     #print(str(pos))
     cad.lcd.write(text)
     time.sleep(delay)
-    dispIlock=0
+    #dispIlock=0
 
 
 # Define and store custom bitmaps to be displayed
@@ -49,26 +51,38 @@ def custom_bitmaps():
 	cad.lcd.store_custom_bitmap(5, back)
 
 
+def display_pos(songpos):
+    global mode
+    if (mode==1):
+        full=songpos+'   '
+        cad.lcd.set_cursor(11,1)
+        write_to_cad(full)
+
+
 def display_volume(avolume):
-        global volume
-        # Keep a copy for mode switches...
-        volume=avolume
-        if (volume=="00"):
-            volume="100"
-        cad.lcd.set_cursor(12,1)
-        #cad.lcd.write(avolume)
-        write_to_cad(volume+'% ')
-        #cad.lcd.write('% ')
-        #print(avolume)
+        global volume, mode
+        if (volume!=avolume) and (mode==0):
+            volume=avolume
+            if (volume=="00"):
+                volume="100"
+    
+            if (volume=="5"):
+                volume=" 5"
+    
+            cad.lcd.set_cursor(10,1)
+            #cad.lcd.write(avolume)
+            write_to_cad(volume+'% ')
+            #cad.lcd.write('% ')
+            #print(avolume)
 
 # Display the play or pause icon
 def display_play(play):
-        global dispIlock
-        while (dispIlock==1):
+        #global dispIlock
+        #while (dispIlock==1):
             #print('Interlock.')
-            sleep(.1)
+        #    sleep(.1)
 
-        dispIlock=1
+        #dispIlock=1
         cad.lcd.set_cursor(0,1)
         if (play==0):
            cad.lcd.write_custom_bitmap(3)
@@ -76,7 +90,7 @@ def display_play(play):
            cad.lcd.write_custom_bitmap(1)
 
         time.sleep(delay)
-        dispIlock=0
+        #dispIlock=0
 
 # Send the seek request
 def seek_forward(step):
@@ -92,10 +106,11 @@ def init_display():
         cad.lcd.blink_off()
         cad.lcd.cursor_off()
         cad.lcd.clear()
-        write_to_cad(title)
+        #write_to_cad(title)
         cad.lcd.set_cursor(11, 1)
         cad.lcd.write_custom_bitmap(0)
         display_volume(volume)
+        display_play(play)
  
 
 # Handle the button presses
@@ -125,9 +140,15 @@ def pushed_forward(event):
 
 #  elif (event.pin_num == 3):
 def reset(event):
+      global rescnt, title, volume
       cad.init_board() 
       init_display() 
       #event.chip.lcd.clear()
+      #display_volume(volume)
+      volume=""
+      title=""
+      rescnt+=1
+      #print(str(rescnt))
 
 #  elif (event.pin_num == 4):
 def pushed_blight(event):
@@ -163,24 +184,24 @@ def slider_left(event):
 
 #  elif (event.pin_num == 5):
 def slider_in(event):
-     global slider, multi, mode, volume
+     global slider, mult, mode #, volume
      slider=0
      if (mode == 0):
-        cad.lcd.set_cursor(11,1)
+        cad.lcd.set_cursor(9,1)
         cad.lcd.write_custom_bitmap(5)
-        cad.lcd.write_custom_bitmap(1)
         #time.sleep(delay)
+        cad.lcd.write_custom_bitmap(1)
+        time.sleep(0.3)
         write_to_cad("   ")
         mode = 1
         mult=30
      else:
-        cad.lcd.set_cursor(11,1)
+        cad.lcd.set_cursor(9,1)
         cad.lcd.write_custom_bitmap(0)
         time.sleep(delay)
         mode = 0
-        display_volume(volume)
+        display_volume('  ')
         mult=5
-
 
 
 def ReadConfig():
@@ -202,30 +223,32 @@ def ReadConfig():
 def displayline(line):
   global cad, mode, songlen, title
 
-  if line.find('newsong') >0:
-     oldlen=songlen
-     cad.lcd.set_cursor(0,0)
-     pos=line.find('newsong')
-     pos=line.find(' ', pos+6)
-     song=line[pos+1:-2]
-     if (song != title):
-         songlen=len(line)-pos-3
-         write_to_cad(song[:80])
-         title=song
-     if (songlen < oldlen):
-        songadd="                                                                                 "[songlen-oldlen:]
-        write_to_cad(songadd)
+  #print(line)
+  #if line.find('newsong') >0:
+  #   oldlen=songlen
+  #   cad.lcd.set_cursor(0,0)
+  #   pos=line.find('newsong')
+  #   pos=line.find(' ', pos+6)
+  #   song=line[pos+1:-2]
+  #   if (song != title):
+  #       songlen=len(line)-pos-3
+  #       write_to_cad(song[:80])
+  #       title=song
+  #   if (songlen < oldlen):
+  #      songadd="                                                                                 "[songlen-oldlen:]
+  #      write_to_cad(songadd)
 
-  elif (line.find('playlist pause 0')>0):
-     display_play(1)
+  #elif (line.find('playlist pause 0')>0):
+  #   display_play(1)
 
-  elif (line.find('playlist pause 1')>0):
-     display_play(0)
+  #elif (line.find('playlist pause 1')>0):
+  #   display_play(0)
 
-  elif (line.find('server volume')>0) and (mode==0):
-     display_volume(line[-2:])
+  #elif (line.find('server volume')>0) and (mode==0):
+  #   display_volume(line[-2:])
 
-  elif (line.find('status ')>0):
+  #elif (line.find('status ')>0):
+  if (line.find('status ')>0):
       pos=line.find('mode:')
       if (line.find('play', pos) == pos+5):
           display_play(1)
@@ -236,6 +259,10 @@ def displayline(line):
       pos2=line.find(' ',pos)
       volume=line[pos+7:pos2]
       display_volume(volume)          
+      pos=line.find('time:')
+      pos2=line.find('.',pos)
+      songpos=line[pos+5:pos2]
+      display_pos(songpos)
 
   elif (line.find('title ')>0): 
      oldlen=songlen
@@ -271,7 +298,7 @@ listener = pifacecad.SwitchEventListener(chip=cad)
 listener.register(0, pifacecad.IODIR_RISING_EDGE, pushed_play)
 listener.register(1, pifacecad.IODIR_RISING_EDGE, pushed_back)
 listener.register(2, pifacecad.IODIR_RISING_EDGE, pushed_forward)
-#listener.register(3, pifacecad.IODIR_RISING_EDGE, reset)
+listener.register(3, pifacecad.IODIR_RISING_EDGE, reset)
 listener.register(4, pifacecad.IODIR_RISING_EDGE, pushed_blight)
 listener.register(5, pifacecad.IODIR_RISING_EDGE, slider_in)
 listener.register(6, pifacecad.IODIR_RISING_EDGE, slider_left)
@@ -290,11 +317,12 @@ fullLine=""
 #list="players name"
 list=PlayerID+' status'
 conn.write(list.encode('ascii')+b"\n")
-list="subscribe prefset,playlist"
-conn.write(list.encode('ascii')+b"\n")
 list=PlayerID+' title ?'
 conn.write(list.encode('ascii')+b"\n")
-while 1:
+#list="subscribe prefset,playlist"
+#conn.write(list.encode('ascii')+b"\n")
+try:
+ while (rescnt<2):
   try:
     readline=conn.read_eager()
   except:
@@ -332,12 +360,30 @@ while 1:
                 list=PlayerID+' mixer volume '+list
 
           else:
-            list=PlayerID+' time '+list
+              if (slider>0):
+                list=PlayerID+' time +'+list
+              else:
+                list=PlayerID+' time '+list
 
           slider=0
-          print (list)
+          #print (list)
           conn.write(list.encode('ascii')+b"\n")
+
+      if (loop==1):
+        list=PlayerID+' status'
+        loop=0
+
       else:
-          time.sleep(delay)  
+        list=PlayerID+' title ?'
+        loop=1
 
+      conn.write(list.encode('ascii')+b"\n")
+      time.sleep(1) #4*delay)  
 
+      #if (rescnt>0):
+      #  rescnt-=1
+
+except:
+  cad.lcd.clear()
+  listener.deactivate()
+  cad.lcd.backlight_off()
